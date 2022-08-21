@@ -8,69 +8,88 @@ from vector import V3
 
 import random
 
+
 class Obj(object):
-  def __init__(self, filename):
-    with open(filename) as f:
-      self.lines = f.read().splitlines()
+    def __init__(self, filename):
 
-    self.vertices = []
-    self.faces = []
+        with open(filename) as f:
+            self.lines = f.read().splitlines()
 
-    for line in self.lines:
+        self.vertices = []
+        self.faces = []
+        self.tvertices = []
+        self.current_material = None
 
-      if line:
+        for line in self.lines:
 
-        if ' ' not in line:
-          continue
+            if line:
 
-        prefix, value = line.split(' ', 1)
+                if ' ' not in line:
+                    continue
 
-        if value[0] == ' ':
-          value = '' + value[1:]
-        
-        if prefix == 'v':
-          self.vertices.append(
-            list(
-              map(float, value.split(' '))
-            )
-          )
+                prefix, value = line.split(' ', 1)
 
-        if prefix == 'f':
-          self.faces.append([
-            list(map(int, face.split('/')))
-                for face in value.split(' ') if face != ''
-          ]) 
+                if value[0] == ' ':
+                    value = '' + value[1:]
+
+                if prefix == 'o':
+                    self.current_material = value
+
+                if prefix == 'usemtl':
+                    self.current_material = value
+
+                if prefix == 'v':
+                    self.vertices.append(
+                        list(
+                            map(float, value.split(' '))
+                        )
+                    )
+
+                if prefix == 'vt':
+                    self.tvertices.append(
+                        list(
+                            map(float, value.split(' '))
+                        )
+                    )
+
+                if prefix == 'f':
+                    act_face = [
+                        list(map(int, face.split('/')))
+                        for face in value.split(' ') if face != ''
+                    ]
+                    self.faces.append({
+                        'material': self.current_material,
+                        'face': act_face
+                    })
+
 
 class Render(object):
 
-	# Metodo ejecutado al inicializar la clase:
+    # Metodo ejecutado al inicializar la clase:
     def __init__(self, width, height):
-		
-		# Estableciendo el ancho y el largo del framebuffer
-        self.width = width  
-        self.height = height    
-        
-		# Estableciendo el desface del Viewport en el framebuffer
-        self.vp_x = 0
-        self.vp_y = 0
 
-		# Estableciendo el ancho y el largo del Viewport
-        self.vp_width = 0
-        self.vp_height = 0
+        # Estableciendo el ancho y el largo del framebuffer
+        self.width = width
+        self.height = height
+
+        # Estableciendo las texturas y materiales del objeto:
+        self.texture = None
+        self.material = None
 
         # Estableciendo el color por defecto con el que pintara el Render en caso de no ser cambiado
-        self.current_color = WHITE 
+        self.current_color = WHITE
 
-		# Estableciendo el color con el que se realizara cualquier clear() en caso de no ser cambiado
-        self.clear_color = BLACK 
+        # Estableciendo el color con el que se realizara cualquier clear() en caso de no ser cambiado
+        self.clear_color = BLACK
 
-		# Limpiando el framebuffer para llenarlo con el color del clear()
+        # Limpiando el framebuffer para llenarlo con el color del clear()
         self.clear()
 
-	# Metodo encargado de limpiar el framebuffer 
+    # Metodo encargado de limpiar el framebuffer
+
     def clear(self):
 
-		# Utilizando list comprehension se llenan todos los pixeles usando width y height
+        # Utilizando list comprehension se llenan todos los pixeles usando width y height
         self.framebuffer = [
             [self.clear_color for x in range(self.width)]
             for y in range(self.height)
@@ -84,7 +103,7 @@ class Render(object):
     def clamping(self, num):
         return int(max(min(num, 255), 0))
 
-	# Metodo utilizado para dibujar el framebuffer en un archivo bmp
+        # Metodo utilizado para dibujar el framebuffer en un archivo bmp
     def write(self, filename):
         f = open(filename, 'bw')
 
@@ -116,14 +135,14 @@ class Render(object):
 
         f.close()
 
-	# Metodo utilizado para establecer un punto especifico en el framebuffer
+        # Metodo utilizado para establecer un punto especifico en el framebuffer
     def point(self, x, y):
         try:
             self.framebuffer[x][y] = self.current_color
         except:
             pass
-    
-    def line(self, v1,v2):
+
+    def line(self, v1, v2):
 
         x0 = v1.x
         y0 = v1.y
@@ -159,11 +178,11 @@ class Render(object):
             if steep:
                 self.point(y, x)
                 # print(y,x,'\n')
-                coordenadas.append([y,x])
+                coordenadas.append([y, x])
             else:
                 self.point(x, y)
                 # print(x,y,'\n')
-                coordenadas.append([x,y])
+                coordenadas.append([x, y])
 
             offset += dy * 2
 
@@ -173,7 +192,7 @@ class Render(object):
                 threshold += dx * 2
 
         return coordenadas
-    
+
     def transformarVertice(self, vertex, scale, translate):
         # return [
         #     ((vertex[0] * scale[0]) + translate[0]),
@@ -185,7 +204,7 @@ class Render(object):
             ((vertex[2] * scale[2]) + translate[2])
         )
 
-    def convertirCoordenadas(self, x,y):
+    def convertirCoordenadas(self, x, y):
 
         x_ini = x + 1
         y_ini = y + 1
@@ -199,22 +218,74 @@ class Render(object):
         xfinal = round(self.vp_x + calcux)
         yfinal = round(self.vp_y + calcuy)
 
-        return [xfinal , yfinal]
+        return [xfinal, yfinal]
 
-    def triangle(self, v1, v2, v3):
-        self.line(round(v1[0]), round(v1[1]), round(v2[0]), round(v2[1]))
-        self.line(round(v2[0]), round(v2[1]), round(v3[0]), round(v3[1]))
-        self.line(round(v3[0]), round(v3[1]), round(v1[0]), round(v1[1]))
-    
+    def triangle(self, vertices, tvertices=[0, 0, 0], material=None):
+        A, B, C = vertices
+
+        if self.texture and tvertices != [0, 0, 0]:
+            tA, tB, tC = tvertices
+
+        N = (C - A) * (B - A)
+        L = V3(0, 0, -1)
+        i = self.productoPunto(L.normalize(), N.normalize())
+
+        if i <= 0 or i > 1:
+            return
+
+        grey = round(255 * i)
+
+        self.current_color = color(grey, grey, grey)
+
+        Bmin, Bmax = self.boundingBox(A, B, C)
+        for x in range(round(Bmin.x), round(Bmax.x) + 1):
+            for y in range(round(Bmin.y), round(Bmax.y) + 1):
+                w, v, u = self.barycentricCoordinates(A, B, C, V3(x, y))
+
+                if (w < 0 or v < 0 or u < 0):
+                    continue
+
+                z = A.z * w + B.z * v + C.z * u
+
+                factor = z/self.width
+
+                try:
+                    if (self.zBuffer[x][y] <= z):
+                        self.zBuffer[x][y] = z
+
+                        def clamping(num):
+                            return int(max(min(num, 255), 0))
+                        self.zClear[x][y] = color(
+                            clamping(factor*255),
+                            clamping(factor*255),
+                            clamping(factor*255))
+
+                        if self.texture and tvertices != [0, 0, 0]:
+                            tx = tA.x * w + tB.x * u + tC.x * v
+                            ty = tA.y * w + tB.y * u + tC.y * v
+
+                            self.current_color = self.texture.get_color_with_intensity(
+                                tx, ty, i)
+
+                        if self.material:
+                            if self.material.materials.get(material):
+                                self.current_color = color(
+                                    *[clamping(c * i) for c in self.material.materials[material]['difuse']])
+                            else:
+                                self.current_color = color(255, 0, 0)
+                        self.point(y, x)
+                except:
+                    continue
+
     def boundingBox(self, A, B, C):
-        coords = [(A.x,A.y), (B.x,B.y), (C.x,C.y)]
+        coords = [(A.x, A.y), (B.x, B.y), (C.x, C.y)]
 
         xmin = float('inf')
         xmax = float('-inf')
         ymin = float('inf')
         ymax = float('-inf')
 
-        for (x,y) in coords:
+        for (x, y) in coords:
             if x < xmin:
                 xmin = x
             if x > xmax:
@@ -223,17 +294,17 @@ class Render(object):
                 ymin = y
             if y > ymax:
                 ymax = y
-        
-        return V3(xmin,ymin), V3(xmax,ymax)
 
-    def crossProduct(self,v1,v2):
+        return V3(xmin, ymin), V3(xmax, ymax)
+
+    def crossProduct(self, v1, v2):
         return (
             (v1.y * v2.z) - (v1.z * v2.y),
             (v1.z * v2.x) - (v1.x * v2.z),
             (v1.x * v2.y) - (v1.y * v2.x)
         )
 
-    def barycentricCoordinates(self,A,B,C,P):
+    def barycentricCoordinates(self, A, B, C, P):
         cx, cy, cz = self.crossProduct(
             V3(B.x - A.x, C.x - A.x, A.x - P.x),
             V3(B.y - A.y, C.y - A.y, A.y - P.y)
@@ -241,9 +312,9 @@ class Render(object):
         u = cx/cz
         v = cy/cz
         w = 1 - (u + v)
-        return (w,v,u)
+        return (w, v, u)
 
-    def productoPunto(self,v1,v2):
+    def productoPunto(self, v1, v2):
         return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
 
     def barycentricTriangle(self, A, B, C,):
@@ -254,66 +325,67 @@ class Render(object):
 
         # --------------------------------------------------------------
 
-
         # Colores rojo, verde y azul para llenar dependiendo de que tan lejos de su vertice se encuentre:
 
-        Acolor = (255,0,0)
-        Bcolor = (0,255,0)
-        Ccolor = (0,0,255)
+        Acolor = (255, 0, 0)
+        Bcolor = (0, 255, 0)
+        Ccolor = (0, 0, 255)
 
         # --------------------------------------------------------------
 
         # Obteniendo las normales para poder dibujar en 3D:
 
-        L = V3(0,0,-5)
+        L = V3(0, 0, -5)
         N = (C-A) * (B-A)
-        I = self.productoPunto(L.normalize(),N.normalize())
+        I = self.productoPunto(L.normalize(), N.normalize())
 
         # print(I)
 
         if I < 0:
             return
-            
-        
+
         # Pintar en escala de grises:
 
-        self.current_color = color(round(255 * I), round(255 * I), round(255 * I))
+        self.current_color = color(
+            round(255 * I), round(255 * I), round(255 * I))
 
         Bminimo, Bmaximo = self.boundingBox(A, B, C)
 
         for x in range(round(Bminimo.x), round(Bmaximo.x) + 1):
             for y in range(round(Bminimo.y), round(Bmaximo.y) + 1):
-                w,v,u = self.barycentricCoordinates(A,B,C, V3(x,y))
-                if(w < 0 or v < 0 or u < 0):
+                w, v, u = self.barycentricCoordinates(A, B, C, V3(x, y))
+                if (w < 0 or v < 0 or u < 0):
                     continue
 
                 z = A.z * w + B.z * v + C.z * u
 
                 # Colores rojo, verde y azul para llenar dependiendo de que tan lejos de su vertice se encuentre:
 
-                a = round(Acolor[0] * w) + round(Bcolor[0] * v) + round(Ccolor[0] * u)
-                b = round(Acolor[1] * w) + round(Bcolor[1] * v) + round(Ccolor[1] * u)
-                c = round(Acolor[2] * w) + round(Bcolor[2] * v) + round(Ccolor[2] * u)
+                a = round(Acolor[0] * w) + round(Bcolor[0]
+                                                 * v) + round(Ccolor[0] * u)
+                b = round(Acolor[1] * w) + round(Bcolor[1]
+                                                 * v) + round(Ccolor[1] * u)
+                c = round(Acolor[2] * w) + round(Bcolor[2]
+                                                 * v) + round(Ccolor[2] * u)
 
                 # self.current_color = color(a,b,c)
 
-
                 # --------------------------------------------------------------
 
-                if(self.zBuffer[x][y] < z):
+                if (self.zBuffer[x][y] < z):
                     self.zBuffer[x][y] = z
-                    self.point(x,y)
+                    self.point(x, y)
 
                 # self.point(x,y)
 
-
     def vertexTriangle(self, v1, v2, v3):
-        
-        self.current_color = color(round(255*random.random()), round(255*random.random()), round(255*random.random()))
 
-        self.line(v1,v2)
-        self.line(v2,v3)
-        self.line(v3,v1)
+        self.current_color = color(round(
+            255*random.random()), round(255*random.random()), round(255*random.random()))
+
+        self.line(v1, v2)
+        self.line(v2, v3)
+        self.line(v3, v1)
 
         # Proceso para rellenar triangulo:
 
@@ -327,9 +399,9 @@ class Render(object):
             A, C = C, A
         if B.y > C.y:
             B, C = C, B
-        
-        dx_ac = (C.x - A.x) 
-        dy_ac = (C.y - A.y) 
+
+        dx_ac = (C.x - A.x)
+        dy_ac = (C.y - A.y)
 
         if dy_ac == 0:
             return
@@ -340,7 +412,7 @@ class Render(object):
         dy_ab = (B.y - A.y)
 
         if dy_ab != 0:
-            
+
             mi_ab = dx_ab / dy_ab
 
             for y in range(round(A.y), round(B.y + 1)):
@@ -370,7 +442,6 @@ class Render(object):
                 for x in range(xi, xf + 1):
                     self.point(x, y)
 
-
     def cube(self, v1, v2, v3, v4):
         # self.line(round(v1[0]), round(v1[1]), round(v2[0]), round(v2[1]))
         # self.line(round(v2[0]), round(v2[1]), round(v3[0]), round(v3[1]))
@@ -382,28 +453,67 @@ class Render(object):
         # self.line(round(v3.x), round(v3.y), round(v4.x), round(v4.y))
         # self.line(round(v4.x), round(v4.y), round(v1.x), round(v1.y))
 
-        self.line(v1,v2)
-        self.line(v2,v3)
-        self.line(v3,v4)
-        self.line(v4,v1)
+        self.line(v1, v2)
+        self.line(v2, v3)
+        self.line(v3, v4)
+        self.line(v4, v1)
 
     def renderObject(self, name, scaleFactor, translateFactor):
         cube = Obj(name)
 
-        for face in cube.faces:
+        for faceDict in cube.faces:
+
+            face = faceDict['face']
             if len(face) == 4:
 
-                v1 = self.transformarVertice(cube.vertices[face[0][0] - 1], scaleFactor, translateFactor)
-                v2 = self.transformarVertice(cube.vertices[face[1][0] - 1], scaleFactor, translateFactor)
-                v3 = self.transformarVertice(cube.vertices[face[2][0] - 1], scaleFactor, translateFactor)
-                v4 = self.transformarVertice(cube.vertices[face[3][0] - 1], scaleFactor, translateFactor)
+                v1 = self.transformarVertice(
+                    cube.vertices[face[0][0] - 1], scaleFactor, translateFactor)
+                v2 = self.transformarVertice(
+                    cube.vertices[face[1][0] - 1], scaleFactor, translateFactor)
+                v3 = self.transformarVertice(
+                    cube.vertices[face[2][0] - 1], scaleFactor, translateFactor)
+                v4 = self.transformarVertice(
+                    cube.vertices[face[3][0] - 1], scaleFactor, translateFactor)
 
-                self.cube(v1, v2, v3, v4)
-            
+                if self.texture and len(cube.tvertices) != 0:
+                    ft1 = face[0][1] - 1
+                    ft2 = face[1][1] - 1
+                    ft3 = face[2][1] - 1
+                    ft4 = face[3][1] - 1
+
+                    vt1 = V3(*cube.tvertices[ft1])
+                    vt2 = V3(*cube.tvertices[ft2])
+                    vt3 = V3(*cube.tvertices[ft3])
+                    vt4 = V3(*cube.tvertices[ft4])
+
+                    self.triangle((v1, v2, v3), (vt1, vt2, vt3),
+                                  material=faceDict['material'])
+                    self.triangle((v1, v3, v4), (vt1, vt3, vt4),
+                                  material=faceDict['material'])
+                else:
+                    self.triangle((v1, v2, v3), material=faceDict['material'])
+                    self.triangle((v1, v3, v4), material=faceDict['material'])
+
             if len(face) == 3:
 
-                v1 = self.transformarVertice(cube.vertices[face[0][0] - 1], scaleFactor, translateFactor)
-                v2 = self.transformarVertice(cube.vertices[face[1][0] - 1], scaleFactor, translateFactor)
-                v3 = self.transformarVertice(cube.vertices[face[2][0] - 1], scaleFactor, translateFactor)
+                v1 = self.transformarVertice(
+                    cube.vertices[face[0][0] - 1], scaleFactor, translateFactor)
+                v2 = self.transformarVertice(
+                    cube.vertices[face[1][0] - 1], scaleFactor, translateFactor)
+                v3 = self.transformarVertice(
+                    cube.vertices[face[2][0] - 1], scaleFactor, translateFactor)
 
-                self.barycentricTriangle(v1, v2, v3)
+                if self.texture and len(cube.tvertices) != 0:
+
+                    ft1 = face[0][1] - 1
+                    ft2 = face[1][1] - 1
+                    ft3 = face[2][1] - 1
+
+                    vt1 = V3(*cube.tvertices[ft1])
+                    vt2 = V3(*cube.tvertices[ft2])
+                    vt3 = V3(*cube.tvertices[ft3])
+
+                    self.triangle((v1, v2, v3), (vt1, vt2, vt3),
+                                  material=faceDict['material'])
+                else:
+                    self.triangle((v1, v2, v3), material=faceDict['material'])

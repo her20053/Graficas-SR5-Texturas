@@ -1,13 +1,18 @@
+# Modulo main.py, utilizado para iniciar laboratorios de graficas:
+
+# Se importa la libreria gl.py para poder utilizar las funciones de OpenGL
 from gl import *
-from vector import V3
-
-# glInit(width=200, height=200)
-# glTriangle(V3(10,70), V3(50,160), V3(70,80), (1,1,0))
-# glTriangle(V3(180, 50), V3(150, 1),  V3(70, 180), (0,1,1))
-# glTriangle(V3(180, 150), V3(120, 160), V3(130, 180), (1,0,1))
-
-glInit(width=1000, height=1000)
-glRenderObject(name ='tree_obj.obj',scaleFactor=(40, 40, 100),translateFactor=(500, 0, 0))
 
 
-glFinish('Triangulos.bmp')
+# Se crea un canvas para poder dibujar:
+glInit(width=1024, height=1024)
+
+glLoadTexture(ObjectFileName='./assets/IGCG.obj',
+              textureFileName='./assets/IG.bmp')
+
+
+glInit(width=1024, height=1024)
+glApplyTexture(TextureBMPFileName='./assets/IG.bmp', objectFileName='./assets/IGCG.obj',
+               scaleFactor=(400, 400, 400), translateFactor=(500, 50, 0))
+nombreArchivo = 'SR5.bmp'
+glFinish(nombreArchivo)
